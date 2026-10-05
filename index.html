@@ -1,0 +1,2632 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProDrum Studio - Simulator Drum Interaktif 3D</title>
+  <meta name="description"
+    content="Simulator Drum interaktif berbasis Web Audio API dengan 12+ instrumen, efek visual 3D, perekam beat, metronom, dan visualizer audio.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0c10;
+      --bg-panel: rgba(22, 27, 36, 0.75);
+      --bg-card: rgba(30, 38, 51, 0.65);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --border-glow: rgba(0, 229, 255, 0.3);
+      --primary: #00f0ff;
+      --primary-glow: rgba(0, 240, 255, 0.5);
+      --secondary: #ff0055;
+      --accent-gold: #ffbe3b;
+      --gold-dark: #8f6511;
+      --drum-skin: radial-gradient(circle, #f4f6fa 0%, #d8dde6 65%, #b2bac7 100%);
+      --drum-shell: #1e2430;
+      --cymbal-bronze: radial-gradient(circle at 35% 35%, #ffe699 0%, #e5b342 35%, #b8861e 70%, #704d09 100%);
+      --cymbal-stack: radial-gradient(circle at 35% 35%, #ffccaa 0%, #c87840 45%, #7a3e14 85%, #421c05 100%);
+      --text-main: #f0f4f8;
+      --text-muted: #8b99ac;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 15%, #182030 0%, #0c0f17 55%, #05070a 100%);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Ambient background lights */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 85vw;
+      height: 450px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(0, 240, 255, 0.08), rgba(255, 0, 85, 0.04) 50%, transparent 80%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Top Navigation / Header */
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 28px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #00f0ff, #ff0055);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .brand-icon svg {
+      width: 26px;
+      height: 26px;
+      fill: #fff;
+    }
+
+    .brand-title h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #ffffff, #a5c7ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-title p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    /* Studio Controls Toolbar */
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .control-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+    }
+
+    .control-card label {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select,
+    input[type="range"],
+    button {
+      font-family: inherit;
+    }
+
+    select {
+      background: #111622;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--primary);
+    }
+
+    /* Custom range */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #252e3d;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      width: 85px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+      cursor: pointer;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 240, 255, 0.05));
+      border-color: rgba(0, 240, 255, 0.4);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.35), rgba(0, 240, 255, 0.1));
+      border-color: var(--primary);
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .btn-record.recording {
+      background: rgba(255, 0, 85, 0.25);
+      border-color: var(--secondary);
+      color: #ff3377;
+      animation: pulse-red 1.2s infinite;
+    }
+
+    @keyframes pulse-red {
+
+      0%,
+      100% {
+        box-shadow: 0 0 8px rgba(255, 0, 85, 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(255, 0, 85, 0.8);
+      }
+    }
+
+    .record-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff0055;
+    }
+
+    /* Main Container */
+    main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 20px 30px;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Top Sub-Bar: Audio visualizer & Metronome status */
+    .status-panel {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+      padding: 10px 18px;
+      background: rgba(14, 18, 26, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      backdrop-filter: blur(10px);
+    }
+
+    .audio-visualizer-box {
+      flex: 1;
+      max-width: 320px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      overflow: hidden;
+      padding: 0 4px;
+    }
+
+    #visualizerCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .info-tips {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .tip-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--primary);
+    }
+
+    /* View Switcher Tabs */
+    .view-switcher {
+      display: inline-flex;
+      background: rgba(18, 24, 34, 0.8);
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: rgba(0, 240, 255, 0.15);
+      color: #00f0ff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Stage Container (Realistic 3D Layout) */
+    .stage-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1180px;
+      min-height: 620px;
+      margin: 10px auto;
+      background: radial-gradient(circle at 50% 60%, rgba(30, 40, 56, 0.4) 0%, rgba(14, 18, 25, 0.85) 65%, rgba(6, 8, 12, 0.95) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      perspective: 1200px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Drum Rug on the stage */
+    .stage-rug {
+      position: absolute;
+      width: 82%;
+      height: 75%;
+      bottom: 6%;
+      left: 9%;
+      background: radial-gradient(ellipse at 50% 50%, #151922 0%, #0d1017 70%, #090b10 100%);
+      border: 2px dashed rgba(255, 255, 255, 0.07);
+      border-radius: 40px;
+      box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8), 0 15px 30px rgba(0, 0, 0, 0.5);
+      transform: rotateX(25deg);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Realistic Drum Kit Arena */
+    .drum-kit-arena {
+      position: relative;
+      width: 100%;
+      height: 620px;
+      z-index: 2;
+      display: block;
+    }
+
+    /* Grid Pad Layout (Alternative View) */
+    .grid-arena {
+      display: none;
+      width: 100%;
+      max-width: 980px;
+      padding: 30px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      z-index: 2;
+    }
+
+    .grid-arena.active {
+      display: grid;
+    }
+
+    .stage-wrapper.grid-mode .drum-kit-arena {
+      display: none;
+    }
+
+    /* Base Instrument Pad styles */
+    .drum-pad {
+      position: absolute;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.07s cubic-bezier(0.1, 0.9, 0.2, 1), box-shadow 0.07s ease, filter 0.07s ease;
+      touch-action: manipulation;
+    }
+
+    .drum-pad:active,
+    .drum-pad.hit {
+      transform: scale(0.94) translateY(3px) !important;
+      filter: brightness(1.35);
+    }
+
+    /* Drum Pad Key Badge & Label */
+    .pad-info {
+      position: absolute;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      z-index: 5;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+    }
+
+    .pad-key {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      padding: 3px 8px;
+      border-radius: 6px;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6);
+      transition: all 0.1s ease;
+    }
+
+    .drum-pad.hit .pad-key {
+      background: var(--primary);
+      color: #000;
+      border-color: #fff;
+      box-shadow: 0 0 12px var(--primary);
+      transform: scale(1.15);
+    }
+
+    .pad-name {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    /* ---------------- CYMBALS STYLING ---------------- */
+    .cymbal {
+      background: var(--cymbal-bronze);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7), inset 0 0 0 2px rgba(255, 255, 255, 0.4), inset 0 0 25px rgba(112, 77, 9, 0.8);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      transform-style: preserve-3d;
+    }
+
+    /* Cymbal concentric grooves / lathed rings */
+    .cymbal::before {
+      content: '';
+      position: absolute;
+      width: 78%;
+      height: 78%;
+      border-radius: 50%;
+      border: 1px dashed rgba(255, 255, 255, 0.3);
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+
+    /* Cymbal bell / cup in center */
+    .cymbal::after {
+      content: '';
+      position: absolute;
+      width: 24%;
+      height: 24%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #fff 0%, #ffde7a 40%, #b8861e 100%);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 0 3px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+    }
+
+    .cymbal.hit {
+      animation: cymbal-wobble 0.6s cubic-bezier(0.15, 0.85, 0.35, 1.2);
+    }
+
+    @keyframes cymbal-wobble {
+      0% {
+        transform: rotate(-5deg) scale(0.96) translateZ(10px);
+      }
+
+      25% {
+        transform: rotate(4deg) scale(1.02) translateZ(-5px);
+      }
+
+      50% {
+        transform: rotate(-2deg) scale(0.99);
+      }
+
+      75% {
+        transform: rotate(1deg) scale(1.01);
+      }
+
+      100% {
+        transform: rotate(0deg) scale(1);
+      }
+    }
+
+    /* Special Cymbal Variants */
+    .cymbal-stack {
+      background: var(--cymbal-stack);
+      border-style: dotted;
+      border-width: 3px;
+    }
+
+    .cymbal-ride {
+      background: radial-gradient(circle at 35% 35%, #fff1c4 0%, #e8bc56 30%, #a47614 70%, #523405 100%);
+    }
+
+    .cymbal-hihat {
+      background: radial-gradient(circle at 35% 35%, #fff0a8 0%, #d89f28 40%, #875c0c 80%, #4f3404 100%);
+    }
+
+    /* ---------------- DRUMS STYLING (Snare & Toms) ---------------- */
+    .drum {
+      background: var(--drum-skin);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), inset 0 0 16px rgba(0, 0, 0, 0.3);
+      border: 10px solid #1a2230;
+      /* Chrome / shell rim */
+      outline: 2px solid #5d6d84;
+    }
+
+    /* Drum head inner ring / logo */
+    .drum::before {
+      content: '';
+      position: absolute;
+      width: 72%;
+      height: 72%;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+    }
+
+    .drum::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.08);
+      pointer-events: none;
+    }
+
+    .drum.hit {
+      animation: drum-vibrate 0.25s ease-out;
+    }
+
+    @keyframes drum-vibrate {
+      0% {
+        transform: scale(0.95) translateY(4px);
+        box-shadow: 0 0 25px var(--primary-glow);
+      }
+
+      50% {
+        transform: scale(1.02) translateY(-2px);
+      }
+
+      100% {
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* Snare special finish */
+    .drum-snare {
+      background: radial-gradient(circle, #ffffff 0%, #eaeef5 65%, #c7cfdd 100%);
+      border-color: #2b3547;
+      outline-color: #798da6;
+    }
+
+    /* Kick drum (Bass drum) */
+    .drum-kick {
+      background: radial-gradient(circle at 50% 50%, #151922 0%, #0a0d14 75%, #05060a 100%);
+      border: 14px solid #181d26;
+      outline: 3px solid #00f0ff;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), inset 0 0 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .drum-kick .pad-name {
+      color: #00f0ff;
+    }
+
+    /* Hit wave effect */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      transform: scale(0);
+      animation: ripple-anim 0.45s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes ripple-anim {
+      to {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+    }
+
+    /* ---------------- REALISTIC DRUM POSITIONING (12 Instruments + Kick) ---------------- */
+    /* 1. Crash 1 (Q) - Top Left */
+    #pad-crash1 {
+      top: 50px;
+      left: 100px;
+      width: 145px;
+      height: 145px;
+      z-index: 4;
+    }
+
+    /* 2. Splash 1 (U) - Inner Left Top */
+    #pad-splash1 {
+      top: 30px;
+      left: 275px;
+      width: 95px;
+      height: 95px;
+      z-index: 4;
+    }
+
+    /* 3. Tom 1 / High Tom (E) - Top Center Left */
+    #pad-tom1 {
+      top: 140px;
+      left: 310px;
+      width: 130px;
+      height: 130px;
+      z-index: 3;
+    }
+
+    /* 4. Tom 2 / Mid Tom (R) - Top Center Right */
+    #pad-tom2 {
+      top: 135px;
+      left: 470px;
+      width: 140px;
+      height: 140px;
+      z-index: 3;
+    }
+
+    /* 5. Splash 2 (I) - Inner Right Top */
+    #pad-splash2 {
+      top: 25px;
+      left: 540px;
+      width: 95px;
+      height: 95px;
+      z-index: 4;
+    }
+
+    /* 6. Stack Cymbal (K / O) - Center-Right Upper */
+    #pad-stack {
+      top: 45px;
+      left: 675px;
+      width: 125px;
+      height: 125px;
+      z-index: 4;
+    }
+
+    /* 7. Crash 2 (W) - Top Right */
+    #pad-crash2 {
+      top: 60px;
+      right: 90px;
+      width: 155px;
+      height: 155px;
+      z-index: 4;
+    }
+
+    /* 8. Hi-Hat Open (O) - Far Left Upper-Mid */
+    #pad-hihat-open {
+      top: 195px;
+      left: 50px;
+      width: 135px;
+      height: 135px;
+      z-index: 5;
+    }
+
+    /* 9. Hi-Hat Closed (P) - Far Left Lower-Mid */
+    #pad-hihat-closed {
+      top: 335px;
+      left: 80px;
+      width: 125px;
+      height: 125px;
+      z-index: 6;
+    }
+
+    /* 10. Snare Drum (S) - Center Left Front */
+    #pad-snare {
+      top: 300px;
+      left: 250px;
+      width: 155px;
+      height: 155px;
+      z-index: 6;
+    }
+
+    /* 11. Tom 3 / Low Tom (T) - Center Right Mid */
+    #pad-tom3 {
+      top: 255px;
+      left: 630px;
+      width: 150px;
+      height: 150px;
+      z-index: 5;
+    }
+
+    /* 12. Floor Tom (F) - Lower Right Front */
+    #pad-floor {
+      top: 360px;
+      left: 775px;
+      width: 175px;
+      height: 175px;
+      z-index: 6;
+    }
+
+    /* 13. Ride Cymbal (Y) - Far Right Mid */
+    #pad-ride {
+      top: 210px;
+      right: 50px;
+      width: 170px;
+      height: 170px;
+      z-index: 5;
+    }
+
+    /* 14. Kick Drum / Bass Drum (Space) - Center Bottom */
+    #pad-kick {
+      bottom: 25px;
+      left: calc(50% - 110px);
+      width: 220px;
+      height: 220px;
+      z-index: 2;
+    }
+
+    /* ---------------- GRID VIEW STYLES ---------------- */
+    .grid-pad {
+      position: relative;
+      height: 120px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.1s ease;
+    }
+
+    .grid-pad:hover {
+      border-color: rgba(0, 240, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .grid-pad:active,
+    .grid-pad.hit {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(255, 0, 85, 0.2));
+      border-color: var(--primary);
+      transform: scale(0.96);
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .grid-pad .grid-key {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--primary);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+
+    .grid-pad .grid-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .grid-pad .grid-type {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ---------------- FOOTER & BEAT TOOLS ---------------- */
+    .bottom-dock {
+      width: 100%;
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .bottom-dock {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .dock-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .card-header h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+    }
+
+    .card-header h2 span {
+      color: var(--primary);
+    }
+
+    /* Metronome controls */
+    .metro-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .bpm-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--primary);
+      min-width: 80px;
+    }
+
+    .bpm-led {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #252e3d;
+      border: 2px solid #364257;
+      transition: all 0.05s ease;
+    }
+
+    .bpm-led.flash {
+      background: #00f0ff;
+      border-color: #fff;
+      box-shadow: 0 0 16px #00f0ff;
+    }
+
+    .bpm-led.accent {
+      background: #ff0055;
+      border-color: #fff;
+      box-shadow: 0 0 16px #ff0055;
+    }
+
+    /* Beat presets & Looper buttons */
+    .preset-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-chip {
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preset-chip:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--primary);
+      color: #00f0ff;
+    }
+
+    .preset-chip.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+      font-weight: 700;
+    }
+
+    /* Modal / Keybinds Editor */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-window {
+      background: #141923;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 640px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+      padding: 24px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+
+    .modal-header h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .close-btn:hover {
+      color: #fff;
+    }
+
+    .keybind-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 550px) {
+      .keybind-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .keybind-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .keybind-row span {
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .key-input-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: #1e2636;
+      color: var(--primary);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      border-radius: 6px;
+      padding: 4px 10px;
+      min-width: 50px;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .key-input-btn.listening {
+      background: var(--secondary);
+      color: #fff;
+      border-color: #fff;
+      animation: pulse-red 0.8s infinite;
+    }
+
+    /* Recorded Tracks List */
+    .record-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .track-info {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Responsive scaling for drum kit */
+    @media (max-width: 1100px) {
+      .stage-wrapper {
+        min-height: 520px;
+      }
+
+      .drum-kit-arena {
+        transform: scale(0.85);
+        transform-origin: center center;
+      }
+    }
+
+    @media (max-width: 850px) {
+      .stage-wrapper {
+        min-height: 440px;
+      }
+
+      .drum-kit-arena {
+        transform: scale(0.68);
+        transform-origin: center center;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .stage-wrapper {
+        min-height: 380px;
+      }
+
+      .drum-kit-arena {
+        transform: scale(0.52);
+        transform-origin: center center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="brand-area">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" fill="none" />
+          <path d="M7 12a5 5 0 0 0 10 0" stroke="white" stroke-width="2" fill="none" />
+          <line x1="12" y1="4" x2="12" y2="12" stroke="white" stroke-width="2" />
+          <line x1="4.5" y1="8" x2="19.5" y2="16" stroke="white" stroke-width="1.5" />
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>ProDrum Studio</h1>
+        <p>Interactive Acoustic & Electronic Drum Kit Simulator</p>
+      </div>
+    </div>
+
+    <!-- Toolbar controls -->
+    <div class="toolbar-group">
+      <!-- Kit Sound Preset -->
+      <div class="control-card">
+        <label for="kitSelect">Sound Kit</label>
+        <select id="kitSelect">
+          <option value="acoustic" selected>Acoustic Studio</option>
+          <option value="rock">Heavy Rock Master</option>
+          <option value="electronic">Modern Trap / 808</option>
+          <option value="vintage">Vintage 80s Punch</option>
+          <option value="jazz">Warm Jazz Club</option>
+        </select>
+      </div>
+
+      <!-- Master Volume -->
+      <div class="control-card">
+        <label for="masterVolume">Vol</label>
+        <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="0.85" title="Volume Master">
+      </div>
+
+      <!-- Reverb Space -->
+      <div class="control-card">
+        <label for="reverbAmount">Room</label>
+        <input type="range" id="reverbAmount" min="0" max="1" step="0.05" value="0.35" title="Room Reverb">
+      </div>
+
+      <!-- Keybinds Modal Button -->
+      <button class="btn" id="openKeybindsBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10" />
+        </svg>
+        Keybinds
+      </button>
+
+      <!-- View Switcher -->
+      <div class="view-switcher">
+        <button class="tab-btn active" id="tabRealistic">Drum Kit 3D</button>
+        <button class="tab-btn" id="tabGrid">Pad Grid</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body -->
+  <main>
+    <!-- Visualizer & Quick Status Bar -->
+    <div class="status-panel">
+      <div class="info-tips">
+        <span class="tip-tag">12 INSTRUMEN RESMI</span>
+        <span>Gunakan keyboard atau sentuh drum pad untuk memainkan instrumen!</span>
+      </div>
+
+      <!-- Audio Frequency Visualizer -->
+      <div class="audio-visualizer-box">
+        <canvas id="visualizerCanvas" width="300" height="36"></canvas>
+      </div>
+    </div>
+
+    <!-- Drum Stage Area -->
+    <div class="stage-wrapper" id="stageWrapper">
+      <div class="stage-rug"></div>
+
+      <!-- REALISTIC DRUM KIT LAYOUT (Total 12 Instrumen + Kick Bass) -->
+      <div class="drum-kit-arena" id="drumKitArena">
+
+        <!-- 1. Crash Cymbal 1 (Key Q) -->
+        <div class="drum-pad cymbal" id="pad-crash1" data-inst="crash1">
+          <div class="pad-info">
+            <span class="pad-key">Q</span>
+            <span class="pad-name">Crash 1</span>
+          </div>
+        </div>
+
+        <!-- 2. Splash Cymbal 1 (Key U) -->
+        <div class="drum-pad cymbal" id="pad-splash1" data-inst="splash1">
+          <div class="pad-info">
+            <span class="pad-key">U</span>
+            <span class="pad-name">Splash 1</span>
+          </div>
+        </div>
+
+        <!-- 3. Tom 1 / High Tom (Key E) -->
+        <div class="drum-pad drum" id="pad-tom1" data-inst="tom1">
+          <div class="pad-info">
+            <span class="pad-key">E</span>
+            <span class="pad-name">Tom 1 (High)</span>
+          </div>
+        </div>
+
+        <!-- 4. Tom 2 / Mid Tom (Key R) -->
+        <div class="drum-pad drum" id="pad-tom2" data-inst="tom2">
+          <div class="pad-info">
+            <span class="pad-key">R</span>
+            <span class="pad-name">Tom 2 (Mid)</span>
+          </div>
+        </div>
+
+        <!-- 5. Splash Cymbal 2 (Key I) -->
+        <div class="drum-pad cymbal" id="pad-splash2" data-inst="splash2">
+          <div class="pad-info">
+            <span class="pad-key">I</span>
+            <span class="pad-name">Splash 2</span>
+          </div>
+        </div>
+
+        <!-- 6. Stack Cymbal (Key K / O customizable) -->
+        <div class="drum-pad cymbal cymbal-stack" id="pad-stack" data-inst="stack">
+          <div class="pad-info">
+            <span class="pad-key">K</span>
+            <span class="pad-name">Stack Cymbal</span>
+          </div>
+        </div>
+
+        <!-- 7. Crash Cymbal 2 (Key W) -->
+        <div class="drum-pad cymbal" id="pad-crash2" data-inst="crash2">
+          <div class="pad-info">
+            <span class="pad-key">W</span>
+            <span class="pad-name">Crash 2</span>
+          </div>
+        </div>
+
+        <!-- 8. Hi-Hat Open (Key O) -->
+        <div class="drum-pad cymbal cymbal-hihat" id="pad-hihat-open" data-inst="hihatOpen">
+          <div class="pad-info">
+            <span class="pad-key">O</span>
+            <span class="pad-name">Hi-Hat Open</span>
+          </div>
+        </div>
+
+        <!-- 9. Hi-Hat Closed (Key P) -->
+        <div class="drum-pad cymbal cymbal-hihat" id="pad-hihat-closed" data-inst="hihatClosed">
+          <div class="pad-info">
+            <span class="pad-key">P</span>
+            <span class="pad-name">Hi-Hat Closed</span>
+          </div>
+        </div>
+
+        <!-- 10. Snare Drum (Key S) -->
+        <div class="drum-pad drum drum-snare" id="pad-snare" data-inst="snare">
+          <div class="pad-info">
+            <span class="pad-key">S</span>
+            <span class="pad-name">Snare Drum</span>
+          </div>
+        </div>
+
+        <!-- 11. Tom 3 / Low Tom (Key T) -->
+        <div class="drum-pad drum" id="pad-tom3" data-inst="tom3">
+          <div class="pad-info">
+            <span class="pad-key">T</span>
+            <span class="pad-name">Tom 3 (Low)</span>
+          </div>
+        </div>
+
+        <!-- 12. Floor Tom (Key F) -->
+        <div class="drum-pad drum" id="pad-floor" data-inst="floorTom">
+          <div class="pad-info">
+            <span class="pad-key">F</span>
+            <span class="pad-name">Floor Tom</span>
+          </div>
+        </div>
+
+        <!-- 13. Ride Cymbal (Key Y) -->
+        <div class="drum-pad cymbal cymbal-ride" id="pad-ride" data-inst="ride">
+          <div class="pad-info">
+            <span class="pad-key">Y</span>
+            <span class="pad-name">Ride Cymbal</span>
+          </div>
+        </div>
+
+        <!-- 14. Bass Drum / Kick (Key Space) -->
+        <div class="drum-pad drum drum-kick" id="pad-kick" data-inst="kick">
+          <div class="pad-info">
+            <span class="pad-key">SPACE</span>
+            <span class="pad-name">Bass Drum (Kick)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ELECTRONIC PAD GRID VIEW -->
+      <div class="grid-arena" id="gridArena">
+        <!-- Generates 14 MPC-style responsive pads -->
+      </div>
+    </div>
+
+    <!-- Bottom Performance Tools (Recorder, Metronome & Beat Presets) -->
+    <div class="bottom-dock">
+      <!-- Card 1: Recorder & Looper -->
+      <div class="dock-card">
+        <div class="card-header">
+          <h2>
+            <span>●</span> Beat Recorder & Looper
+          </h2>
+          <div class="track-info" id="recordTimer">00:00</div>
+        </div>
+        <div class="record-controls">
+          <button class="btn btn-record" id="btnRecord">
+            <span class="record-indicator"></span> Rekam
+          </button>
+          <button class="btn" id="btnPlayRecord" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            Putar
+          </button>
+          <button class="btn" id="btnLoopRecord" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 2l4 4-4 4" />
+              <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+              <path d="M7 22l-4-4 4-4" />
+              <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+            </svg>
+            Loop
+          </button>
+          <button class="btn" id="btnClearRecord" disabled>Hapus</button>
+          <button class="btn btn-primary" id="btnExportRecord" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export WAV
+          </button>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-muted);">
+          Mainkan beat drum Anda saat merekam. Rekaman dapat diputar ulang berulang kali (looping) atau diunduh sebagai
+          file audio WAV studio.
+        </p>
+      </div>
+
+      <!-- Card 2: Metronome & Demo Grooves -->
+      <div class="dock-card">
+        <div class="card-header">
+          <h2>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 20 21 4 21 12 2" />
+              <line x1="12" y1="9" x2="17" y2="14" />
+            </svg>
+            Metronome & Groove Presets
+          </h2>
+          <div class="bpm-led" id="metroLed"></div>
+        </div>
+
+        <div class="metro-controls">
+          <button class="btn" id="metroToggleBtn">Mulai Metronome</button>
+          <span class="bpm-display" id="bpmVal">120 BPM</span>
+          <input type="range" id="bpmSlider" min="50" max="220" value="120">
+          <button class="btn" id="tapTempoBtn">Tap Tempo</button>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <label
+            style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 6px;">
+            Demo Beat Play-along (Latihan):
+          </label>
+          <div class="preset-list">
+            <button class="preset-chip" data-groove="rock">Classic Rock</button>
+            <button class="preset-chip" data-groove="funk">Funk 16th</button>
+            <button class="preset-chip" data-groove="trap">Hip-Hop Trap</button>
+            <button class="preset-chip" data-groove="metal">Heavy Metal</button>
+            <button class="preset-chip" id="stopGrooveBtn" style="color: #ff5577;">■ Stop Groove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Keybinds Customization Modal -->
+  <div class="modal-overlay" id="keybindsModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>Konfigurasi Pintasan Keyboard (Keybinds)</h3>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px;">
+        Klik pada kotak tombol untuk menetapkan pintasan keyboard baru untuk instrumen drum yang dipilih.
+      </p>
+
+      <div class="keybind-grid" id="keybindGrid">
+        <!-- Dynamically rendered rows -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn" id="resetKeybindsBtn">Reset ke Default</button>
+        <button class="btn btn-primary" id="saveKeybindsBtn">Selesai</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Synth & Interaction Logic -->
+  <script>
+    // ---------------- DEFAULT INSTRUMENTS CONFIGURATION ----------------
+    // Sesuai dengan spesifikasi prompt user:
+    // Hi-Hat Closed: P, Hi-Hat Open: O, Snare: S, Tom 1: E, Tom 2: R, Tom 3: T,
+    // Floor Tom: F, Crash 1: Q, Crash 2: W, Ride: Y, Splash 1: U, Splash 2: I,
+    // Stack Cymbal: K (atau O), Bass Drum (Kick): Space
+    const defaultInstruments = [
+      { id: 'hihatClosed', name: 'Hi-Hat (Closed)', key: 'p', type: 'cymbal' },
+      { id: 'hihatOpen', name: 'Hi-Hat (Open)', key: 'o', type: 'cymbal' },
+      { id: 'snare', name: 'Snare Drum', key: 's', type: 'drum' },
+      { id: 'tom1', name: 'Tom 1 (High Tom)', key: 'e', type: 'drum' },
+      { id: 'tom2', name: 'Tom 2 (Mid Tom)', key: 'r', type: 'drum' },
+      { id: 'tom3', name: 'Tom 3 (Low Tom)', key: 't', type: 'drum' },
+      { id: 'floorTom', name: 'Floor Tom', key: 'f', type: 'drum' },
+      { id: 'crash1', name: 'Crash Cymbal 1', key: 'q', type: 'cymbal' },
+      { id: 'crash2', name: 'Crash Cymbal 2', key: 'w', type: 'cymbal' },
+      { id: 'ride', name: 'Ride Cymbal', key: 'y', type: 'cymbal' },
+      { id: 'splash1', name: 'Splash Cymbal 1', key: 'u', type: 'cymbal' },
+      { id: 'splash2', name: 'Splash Cymbal 2', key: 'i', type: 'cymbal' },
+      { id: 'stack', name: 'Stack Cymbal', key: 'k', type: 'cymbal' }, // Default key K agar tidak tumpang tindih dgn Hi-Hat Open (O), bisa dikustomisasi
+      { id: 'kick', name: 'Bass Drum (Kick)', key: ' ', type: 'drum' }
+    ];
+
+    // Keybindings map
+    let keyMap = {};
+    let listeningKeyId = null;
+
+    function initKeyMap() {
+      const saved = localStorage.getItem('prodrum_keybinds');
+      if (saved) {
+        try {
+          keyMap = JSON.parse(saved);
+        } catch (e) {
+          keyMap = {};
+        }
+      }
+      defaultInstruments.forEach(inst => {
+        if (!keyMap[inst.id]) {
+          keyMap[inst.id] = inst.key;
+        }
+      });
+      updateVisualKeys();
+    }
+
+    function updateVisualKeys() {
+      defaultInstruments.forEach(inst => {
+        const curKey = keyMap[inst.id] || inst.key;
+        const displayKey = curKey === ' ' ? 'SPACE' : curKey.toUpperCase();
+
+        // In realistic arena
+        const padEl = document.getElementById(`pad-${inst.id}`);
+        if (padEl) {
+          const keyLabel = padEl.querySelector('.pad-key');
+          if (keyLabel) keyLabel.textContent = displayKey;
+        }
+
+        // In grid arena
+        const gridKeyEl = document.querySelector(`.grid-pad[data-inst="${inst.id}"] .grid-key`);
+        if (gridKeyEl) {
+          gridKeyEl.textContent = displayKey;
+        }
+      });
+    }
+
+    // ---------------- WEB AUDIO API SYNTHESIZER ENGINE ----------------
+    class DrumAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.reverbNode = null;
+        this.reverbGain = null;
+        this.dryGain = null;
+        this.analyser = null;
+        this.currentKit = 'acoustic';
+        this.isInitialized = false;
+
+        // Active open hi-hat reference for choking
+        this.openHihatGain = null;
+      }
+
+      init() {
+        if (this.isInitialized) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+
+        // Master Gain
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+        // Analyser for real-time visualizer
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 64;
+
+        // Dry / Wet Routing
+        this.dryGain = this.ctx.createGain();
+        this.reverbGain = this.ctx.createGain();
+        this.reverbGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+
+        // Simple Synthetic Convolver Reverb
+        this.createReverbImpulse();
+
+        this.dryGain.connect(this.masterGain);
+        this.reverbGain.connect(this.masterGain);
+        this.masterGain.connect(this.analyser);
+        this.analyser.connect(this.ctx.destination);
+
+        this.isInitialized = true;
+      }
+
+      ensureContext() {
+        if (!this.isInitialized) this.init();
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setVolume(val) {
+        if (!this.masterGain) return;
+        this.masterGain.gain.setValueAtTime(val, this.ctx.currentTime);
+      }
+
+      setReverb(val) {
+        if (!this.reverbGain) return;
+        this.reverbGain.gain.setValueAtTime(val, this.ctx.currentTime);
+      }
+
+      setKit(kit) {
+        this.currentKit = kit;
+      }
+
+      createReverbImpulse() {
+        const rate = this.ctx.sampleRate;
+        const length = rate * 1.5;
+        const impulse = this.ctx.createBuffer(2, length, rate);
+        const left = impulse.getChannelData(0);
+        const right = impulse.getChannelData(1);
+
+        for (let i = 0; i < length; i++) {
+          const decay = Math.exp(-i / (rate * 0.4));
+          left[i] = (Math.random() * 2 - 1) * decay;
+          right[i] = (Math.random() * 2 - 1) * decay;
+        }
+
+        this.reverbNode = this.ctx.createConvolver();
+        this.reverbNode.buffer = impulse;
+        this.reverbNode.connect(this.reverbGain);
+      }
+
+      // Connect an audio node to dry & wet
+      route(node) {
+        node.connect(this.dryGain);
+        node.connect(this.reverbNode);
+      }
+
+      // Metallic noise generator for cymbals and hihats
+      createMetallicNoiseBuffer() {
+        const length = this.ctx.sampleRate * 2.5;
+        const buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+      }
+
+      // ---------------- SOUND GENERATORS ----------------
+      // 1. Kick Drum (Bass)
+      playKick(velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        let startFreq = 160;
+        let endFreq = 38;
+        let decay = 0.45;
+
+        if (this.currentKit === 'rock') {
+          startFreq = 180; endFreq = 45; decay = 0.5;
+        } else if (this.currentKit === 'electronic') {
+          startFreq = 140; endFreq = 32; decay = 0.8; // 808 sub
+        } else if (this.currentKit === 'vintage') {
+          startFreq = 200; endFreq = 50; decay = 0.35;
+        }
+
+        osc.frequency.setValueAtTime(startFreq, t);
+        osc.frequency.exponentialRampToValueAtTime(endFreq, t + 0.12);
+
+        gain.gain.setValueAtTime(velocity * 1.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+
+        // Click transient for beater attack
+        const clickOsc = this.ctx.createOscillator();
+        const clickGain = this.ctx.createGain();
+        clickOsc.frequency.setValueAtTime(800, t);
+        clickOsc.frequency.exponentialRampToValueAtTime(60, t + 0.025);
+        clickGain.gain.setValueAtTime(velocity * 0.7, t);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+        clickOsc.connect(clickGain);
+        clickGain.connect(this.dryGain);
+        clickOsc.start(t);
+        clickOsc.stop(t + 0.025);
+
+        osc.connect(gain);
+        this.route(gain);
+
+        osc.start(t);
+        osc.stop(t + decay);
+      }
+
+      // 2. Snare Drum
+      playSnare(velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+
+        // Body tone (fundamental)
+        const osc = this.ctx.createOscillator();
+        const oscGain = this.ctx.createGain();
+        let baseFreq = this.currentKit === 'vintage' ? 220 : 185;
+        osc.frequency.setValueAtTime(baseFreq, t);
+        osc.frequency.exponentialRampToValueAtTime(85, t + 0.12);
+
+        oscGain.gain.setValueAtTime(velocity * 0.8, t);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(oscGain);
+        this.route(oscGain);
+        osc.start(t);
+        osc.stop(t + 0.2);
+
+        // Noise rattle (snare wires)
+        const noiseBuffer = this.createMetallicNoiseBuffer();
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(1000, t);
+
+        const noiseGain = this.ctx.createGain();
+        let snareDecay = this.currentKit === 'rock' ? 0.38 : 0.26;
+        if (this.currentKit === 'electronic') snareDecay = 0.22;
+
+        noiseGain.gain.setValueAtTime(velocity * 0.95, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + snareDecay);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        this.route(noiseGain);
+
+        noise.start(t);
+        noise.stop(t + snareDecay);
+      }
+
+      // 3. Toms (Tom 1, 2, 3, Floor Tom)
+      playTom(frequency, decayTime = 0.5, velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.setValueAtTime(frequency * 1.5, t);
+        osc.frequency.exponentialRampToValueAtTime(frequency, t + 0.08);
+
+        gain.gain.setValueAtTime(velocity * 1.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + decayTime);
+
+        // Membrane stick attack
+        const attackNoise = this.ctx.createBufferSource();
+        attackNoise.buffer = this.createMetallicNoiseBuffer();
+        const attackFilter = this.ctx.createBiquadFilter();
+        attackFilter.type = 'bandpass';
+        attackFilter.frequency.setValueAtTime(frequency * 2.5, t);
+        const attackGain = this.ctx.createGain();
+        attackGain.gain.setValueAtTime(velocity * 0.4, t);
+        attackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+
+        attackNoise.connect(attackFilter);
+        attackFilter.connect(attackGain);
+        attackGain.connect(this.dryGain);
+        attackNoise.start(t);
+        attackNoise.stop(t + 0.04);
+
+        osc.connect(gain);
+        this.route(gain);
+
+        osc.start(t);
+        osc.stop(t + decayTime);
+      }
+
+      // 4. Hi-Hat Closed (with choking of open hi-hat)
+      playHiHatClosed(velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+
+        // Choke open hi-hat if ringing
+        if (this.openHihatGain) {
+          try {
+            this.openHihatGain.gain.cancelScheduledValues(t);
+            this.openHihatGain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+            this.openHihatGain = null;
+          } catch (e) { }
+        }
+
+        this.generateCymbalSound({
+          frequencies: [320, 480, 620, 780, 890, 1100],
+          highpass: 7000,
+          decay: 0.06,
+          gainVal: velocity * 0.75,
+          isMetallic: true
+        });
+      }
+
+      // 5. Hi-Hat Open
+      playHiHatOpen(velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+
+        const gainNode = this.generateCymbalSound({
+          frequencies: [320, 480, 620, 780, 890, 1100],
+          highpass: 6500,
+          decay: 0.65,
+          gainVal: velocity * 0.85,
+          isMetallic: true
+        });
+
+        this.openHihatGain = gainNode;
+      }
+
+      // 6. Crash 1
+      playCrash1(velocity = 1.0) {
+        this.ensureContext();
+        this.generateCymbalSound({
+          frequencies: [280, 390, 520, 710, 850, 1020],
+          highpass: 4500,
+          decay: 1.8,
+          gainVal: velocity * 1.05,
+          isMetallic: true
+        });
+      }
+
+      // 7. Crash 2
+      playCrash2(velocity = 1.0) {
+        this.ensureContext();
+        this.generateCymbalSound({
+          frequencies: [240, 360, 490, 660, 810, 980],
+          highpass: 3800,
+          decay: 2.2,
+          gainVal: velocity * 1.1,
+          isMetallic: true
+        });
+      }
+
+      // 8. Ride Cymbal
+      playRide(velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+
+        // Distinct clear ping bell
+        const bell = this.ctx.createOscillator();
+        const bellGain = this.ctx.createGain();
+        bell.type = 'triangle';
+        bell.frequency.setValueAtTime(840, t);
+        bellGain.gain.setValueAtTime(velocity * 0.5, t);
+        bellGain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        bell.connect(bellGain);
+        this.route(bellGain);
+        bell.start(t);
+        bell.stop(t + 0.7);
+
+        // Ride wash
+        this.generateCymbalSound({
+          frequencies: [410, 560, 730, 920],
+          highpass: 5500,
+          decay: 1.4,
+          gainVal: velocity * 0.65,
+          isMetallic: true
+        });
+      }
+
+      // 9. Splash 1
+      playSplash1(velocity = 1.0) {
+        this.ensureContext();
+        this.generateCymbalSound({
+          frequencies: [550, 780, 990, 1250],
+          highpass: 8000,
+          decay: 0.45,
+          gainVal: velocity * 0.8,
+          isMetallic: true
+        });
+      }
+
+      // 10. Splash 2
+      playSplash2(velocity = 1.0) {
+        this.ensureContext();
+        this.generateCymbalSound({
+          frequencies: [620, 850, 1100, 1380],
+          highpass: 8500,
+          decay: 0.38,
+          gainVal: velocity * 0.75,
+          isMetallic: true
+        });
+      }
+
+      // 11. Stack Cymbal (Trashy, clapped, tight dirty sizzle)
+      playStack(velocity = 1.0) {
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+
+        // Trash noise burst
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.createMetallicNoiseBuffer();
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(3200, t);
+        filter.Q.setValueAtTime(1.5, t);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(velocity * 0.95, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+        // Clank overtone
+        const clank = this.ctx.createOscillator();
+        const clankGain = this.ctx.createGain();
+        clank.type = 'square';
+        clank.frequency.setValueAtTime(620, t);
+        clankGain.gain.setValueAtTime(velocity * 0.3, t);
+        clankGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        clank.connect(clankGain);
+
+        this.route(gain);
+        this.route(clankGain);
+
+        noise.start(t);
+        noise.stop(t + 0.22);
+        clank.start(t);
+        clank.stop(t + 0.08);
+      }
+
+      // Helper for complex metallic frequency bank + filtered noise
+      generateCymbalSound({ frequencies, highpass, decay, gainVal, isMetallic }) {
+        const t = this.ctx.currentTime;
+
+        // Metallic harmonic bank (6 detuned square waves, Roland TR-style algorithm)
+        const bankGain = this.ctx.createGain();
+        bankGain.gain.setValueAtTime(gainVal * 0.45, t);
+        bankGain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+
+        frequencies.forEach(f => {
+          const osc = this.ctx.createOscillator();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(f, t);
+          osc.connect(bankGain);
+          osc.start(t);
+          osc.stop(t + decay);
+        });
+
+        // Filtered high-frequency air noise
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.createMetallicNoiseBuffer();
+
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(highpass, t);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(gainVal * 0.8, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + decay);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+
+        const mainOutput = this.ctx.createGain();
+        bankGain.connect(mainOutput);
+        noiseGain.connect(mainOutput);
+
+        this.route(mainOutput);
+        noise.start(t);
+        noise.stop(t + decay);
+
+        return mainOutput;
+      }
+
+      // Master trigger method by instrument ID
+      playInstrument(id, velocity = 1.0) {
+        switch (id) {
+          case 'hihatClosed': this.playHiHatClosed(velocity); break;
+          case 'hihatOpen': this.playHiHatOpen(velocity); break;
+          case 'snare': this.playSnare(velocity); break;
+          case 'tom1': this.playTom(190, 0.42, velocity); break; // High Tom
+          case 'tom2': this.playTom(145, 0.48, velocity); break; // Mid Tom
+          case 'tom3': this.playTom(115, 0.55, velocity); break; // Low Tom
+          case 'floorTom': this.playTom(85, 0.65, velocity); break;  // Floor Tom
+          case 'crash1': this.playCrash1(velocity); break;
+          case 'crash2': this.playCrash2(velocity); break;
+          case 'ride': this.playRide(velocity); break;
+          case 'splash1': this.playSplash1(velocity); break;
+          case 'splash2': this.playSplash2(velocity); break;
+          case 'stack': this.playStack(velocity); break;
+          case 'kick': this.playKick(velocity); break;
+        }
+      }
+    }
+
+    // Instantiate Audio Engine
+    const audio = new DrumAudioEngine();
+
+    // ---------------- UI & TRIGGER SYSTEM ----------------
+    function triggerInstrument(instId, velocity = 1.0) {
+      audio.playInstrument(instId, velocity);
+
+      // Visual feedback on realistic arena
+      const padEl = document.getElementById(`pad-${instId}`);
+      if (padEl) {
+        padEl.classList.remove('hit');
+        void padEl.offsetWidth; // trigger reflow
+        padEl.classList.add('hit');
+        createRippleEffect(padEl);
+      }
+
+      // Visual feedback on grid arena
+      const gridPad = document.querySelector(`.grid-pad[data-inst="${instId}"]`);
+      if (gridPad) {
+        gridPad.classList.remove('hit');
+        void gridPad.offsetWidth;
+        gridPad.classList.add('hit');
+      }
+
+      // Record event if recorder is recording
+      if (recorder.isRecording) {
+        recorder.addEvent(instId);
+      }
+    }
+
+    function createRippleEffect(el) {
+      const ripple = document.createElement('div');
+      ripple.className = 'ripple';
+      const rect = el.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.width = size + 'px';
+      ripple.style.height = size + 'px';
+      ripple.style.left = '0px';
+      ripple.style.top = '0px';
+      el.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 450);
+    }
+
+    // ---------------- KEYBOARD INPUT HANDLING ----------------
+    const activeKeys = new Set();
+
+    window.addEventListener('keydown', (e) => {
+      // Don't trigger if user is typing in an input or listening for keybind remapping
+      if (listeningKeyId) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      const pressedKey = e.key.toLowerCase();
+      if (activeKeys.has(pressedKey)) return; // Prevent repeat on holding key down
+      activeKeys.add(pressedKey);
+
+      // Find instrument matching key
+      for (const [instId, key] of Object.entries(keyMap)) {
+        if (key.toLowerCase() === pressedKey) {
+          e.preventDefault();
+          triggerInstrument(instId);
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      activeKeys.delete(e.key.toLowerCase());
+
+      // Remove visual hit state from pads
+      const pressedKey = e.key.toLowerCase();
+      for (const [instId, key] of Object.entries(keyMap)) {
+        if (key.toLowerCase() === pressedKey) {
+          const padEl = document.getElementById(`pad-${instId}`);
+          if (padEl) padEl.classList.remove('hit');
+          const gridPad = document.querySelector(`.grid-pad[data-inst="${instId}"]`);
+          if (gridPad) gridPad.classList.remove('hit');
+        }
+      }
+    });
+
+    // ---------------- MOUSE / TOUCH EVENTS ON DRUM PADS ----------------
+    function setupPadListeners() {
+      // Realistic Pads
+      document.querySelectorAll('.drum-pad').forEach(pad => {
+        const instId = pad.getAttribute('data-inst');
+
+        pad.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          audio.ensureContext();
+          triggerInstrument(instId);
+        });
+      });
+
+      // Grid Pads
+      document.querySelectorAll('.grid-pad').forEach(pad => {
+        const instId = pad.getAttribute('data-inst');
+
+        pad.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          audio.ensureContext();
+          triggerInstrument(instId);
+        });
+      });
+    }
+
+    // Populate Pad Grid (Alternative MPC View)
+    function buildGridArena() {
+      const grid = document.getElementById('gridArena');
+      grid.innerHTML = '';
+      defaultInstruments.forEach(inst => {
+        const pad = document.createElement('div');
+        pad.className = 'grid-pad';
+        pad.setAttribute('data-inst', inst.id);
+        const curKey = keyMap[inst.id] || inst.key;
+        const displayKey = curKey === ' ' ? 'SPACE' : curKey.toUpperCase();
+
+        pad.innerHTML = `
+          <div class="grid-key">${displayKey}</div>
+          <div class="grid-title">${inst.name}</div>
+          <div class="grid-type">${inst.type}</div>
+        `;
+        grid.appendChild(pad);
+      });
+    }
+
+    // ---------------- AUDIO FREQUENCY VISUALIZER ----------------
+    function initVisualizer() {
+      const canvas = document.getElementById('visualizerCanvas');
+      const ctx = canvas.getContext('2d');
+      const bufferLength = 32;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        requestAnimationFrame(draw);
+        if (!audio.analyser) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+
+        audio.analyser.getByteFrequencyData(dataArray);
+
+        ctx.fillStyle = 'rgba(10, 14, 20, 0.35)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / bufferLength) * 1.3;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * canvas.height;
+          const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+          gradient.addColorStop(0, '#00f0ff');
+          gradient.addColorStop(0.6, '#ff0055');
+          gradient.addColorStop(1, '#ffbe3b');
+
+          ctx.fillStyle = gradient;
+          ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+
+          x += barWidth + 1;
+        }
+      }
+      draw();
+    }
+
+    // ---------------- RECORDER & LOOPER ----------------
+    class BeatRecorder {
+      constructor() {
+        this.isRecording = false;
+        this.isPlaying = false;
+        this.isLooping = false;
+        this.startTime = 0;
+        this.events = [];
+        this.playbackTimeouts = [];
+        this.timerInterval = null;
+        this.recordDuration = 0;
+      }
+
+      startRecording() {
+        audio.ensureContext();
+        this.isRecording = true;
+        this.events = [];
+        this.startTime = performance.now();
+        this.recordDuration = 0;
+
+        document.getElementById('btnRecord').classList.add('recording');
+        document.getElementById('btnRecord').innerHTML = '<span class="record-indicator"></span> Stop Rekam';
+        document.getElementById('btnPlayRecord').disabled = true;
+        document.getElementById('btnLoopRecord').disabled = true;
+        document.getElementById('btnClearRecord').disabled = true;
+        document.getElementById('btnExportRecord').disabled = true;
+
+        this.timerInterval = setInterval(() => {
+          const elapsed = (performance.now() - this.startTime) / 1000;
+          this.recordDuration = elapsed;
+          const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+          const secs = Math.floor(elapsed % 60).toString().padStart(2, '0');
+          document.getElementById('recordTimer').textContent = `${mins}:${secs}`;
+        }, 100);
+      }
+
+      stopRecording() {
+        this.isRecording = false;
+        clearInterval(this.timerInterval);
+        document.getElementById('btnRecord').classList.remove('recording');
+        document.getElementById('btnRecord').innerHTML = '<span class="record-indicator"></span> Rekam';
+
+        if (this.events.length > 0) {
+          document.getElementById('btnPlayRecord').disabled = false;
+          document.getElementById('btnLoopRecord').disabled = false;
+          document.getElementById('btnClearRecord').disabled = false;
+          document.getElementById('btnExportRecord').disabled = false;
+        }
+      }
+
+      addEvent(instId) {
+        if (!this.isRecording) return;
+        const time = performance.now() - this.startTime;
+        this.events.push({ instId, time });
+      }
+
+      play() {
+        if (this.events.length === 0) return;
+        this.stopPlayback();
+        this.isPlaying = true;
+        document.getElementById('btnPlayRecord').textContent = 'Stop Putar';
+
+        const totalTime = Math.max(this.recordDuration * 1000, 1000);
+
+        this.events.forEach(ev => {
+          const timeout = setTimeout(() => {
+            triggerInstrument(ev.instId);
+          }, ev.time);
+          this.playbackTimeouts.push(timeout);
+        });
+
+        const endTimeout = setTimeout(() => {
+          if (this.isLooping) {
+            this.play();
+          } else {
+            this.stopPlayback();
+          }
+        }, totalTime);
+        this.playbackTimeouts.push(endTimeout);
+      }
+
+      stopPlayback() {
+        this.isPlaying = false;
+        this.playbackTimeouts.forEach(t => clearTimeout(t));
+        this.playbackTimeouts = [];
+        document.getElementById('btnPlayRecord').innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Putar
+        `;
+      }
+
+      clear() {
+        this.stopPlayback();
+        this.isLooping = false;
+        this.events = [];
+        this.recordDuration = 0;
+        document.getElementById('recordTimer').textContent = '00:00';
+        document.getElementById('btnPlayRecord').disabled = true;
+        document.getElementById('btnLoopRecord').disabled = true;
+        document.getElementById('btnClearRecord').disabled = true;
+        document.getElementById('btnExportRecord').disabled = true;
+        document.getElementById('btnLoopRecord').classList.remove('btn-primary');
+      }
+
+      // Export recorded pattern to actual WAV audio file using OfflineAudioContext
+      exportWAV() {
+        if (this.events.length === 0) return;
+        const duration = Math.max(this.recordDuration + 1.5, 3.0);
+        const sampleRate = 44100;
+        const offlineCtx = new OfflineAudioContext(2, sampleRate * duration, sampleRate);
+
+        // Synthesize offline buffer
+        this.events.forEach(ev => {
+          const t = ev.time / 1000;
+          this.renderOfflineInstrument(offlineCtx, ev.instId, t);
+        });
+
+        offlineCtx.startRendering().then(renderedBuffer => {
+          const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+          const url = URL.createObjectURL(wavBlob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `prodrum_beat_${Date.now()}.wav`;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            a.remove();
+          }, 1000);
+        });
+      }
+
+      // Offline synthesizer renderer for WAV export
+      renderOfflineInstrument(ctx, id, t) {
+        if (id === 'kick') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.setValueAtTime(160, t);
+          osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+          gain.gain.setValueAtTime(1.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.45);
+        } else if (id === 'snare') {
+          const osc = ctx.createOscillator();
+          const oscGain = ctx.createGain();
+          osc.frequency.setValueAtTime(185, t);
+          osc.frequency.exponentialRampToValueAtTime(85, t + 0.12);
+          oscGain.gain.setValueAtTime(0.8, t);
+          oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+          osc.connect(oscGain);
+          oscGain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.2);
+
+          // Noise
+          const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'highpass';
+          filter.frequency.setValueAtTime(1000, t);
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.9, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          noise.start(t);
+          noise.stop(t + 0.28);
+        } else {
+          // General cymbal / tom offline burst
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          let f = 300;
+          if (id.includes('tom')) f = 120;
+          if (id.includes('hihat') || id.includes('splash') || id.includes('crash')) f = 2500;
+          osc.frequency.setValueAtTime(f, t);
+          gain.gain.setValueAtTime(0.7, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.3);
+        }
+      }
+    }
+
+    const recorder = new BeatRecorder();
+
+    // Helper: AudioBuffer to WAV format
+    function bufferToWave(abuffer, len) {
+      let numOfChan = abuffer.numberOfChannels,
+        length = len * numOfChan * 2 + 44,
+        out = new DataView(new ArrayBuffer(length)),
+        channels = [], i, sample,
+        offset = 0,
+        pos = 0;
+
+      function setUint16(data) { out.setUint16(pos, data, true); pos += 2; }
+      function setUint32(data) { out.setUint32(pos, data, true); pos += 4; }
+
+      setUint32(0x46464952); // "RIFF"
+      setUint32(length - 8); // file length - 8
+      setUint32(0x45564157); // "WAVE"
+
+      setUint32(0x20746d66); // "fmt " chunk
+      setUint32(16);         // length = 16
+      setUint16(1);          // PCM
+      setUint16(numOfChan);
+      setUint32(abuffer.sampleRate);
+      setUint32(abuffer.sampleRate * 2 * numOfChan); // byte rate
+      setUint16(numOfChan * 2); // block align
+      setUint16(16);         // bits per sample
+
+      setUint32(0x61746164); // "data" - chunk
+      setUint32(length - pos - 4);
+
+      for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+
+      while (pos < length) {
+        for (i = 0; i < numOfChan; i++) {
+          sample = Math.max(-1, Math.min(1, channels[i][offset]));
+          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+          out.setInt16(pos, sample, true);
+          pos += 2;
+        }
+        offset++;
+      }
+      return new Blob([out], { type: 'audio/wav' });
+    }
+
+    // ---------------- METRONOME & GROOVE PRESETS ----------------
+    class Metronome {
+      constructor() {
+        this.bpm = 120;
+        this.isPlaying = false;
+        this.interval = null;
+        this.beat = 0;
+      }
+
+      start() {
+        audio.ensureContext();
+        this.isPlaying = true;
+        this.beat = 0;
+        document.getElementById('metroToggleBtn').textContent = 'Stop Metronome';
+        this.tick();
+        this.interval = setInterval(() => this.tick(), (60 / this.bpm) * 1000);
+      }
+
+      stop() {
+        this.isPlaying = false;
+        clearInterval(this.interval);
+        document.getElementById('metroToggleBtn').textContent = 'Mulai Metronome';
+        document.getElementById('metroLed').className = 'bpm-led';
+      }
+
+      setBpm(newBpm) {
+        this.bpm = newBpm;
+        if (this.isPlaying) {
+          clearInterval(this.interval);
+          this.interval = setInterval(() => this.tick(), (60 / this.bpm) * 1000);
+        }
+      }
+
+      tick() {
+        const isAccent = (this.beat % 4 === 0);
+        this.beat++;
+
+        // Visual flash
+        const led = document.getElementById('metroLed');
+        led.className = isAccent ? 'bpm-led accent' : 'bpm-led flash';
+        setTimeout(() => { led.className = 'bpm-led'; }, 100);
+
+        // Sound click
+        if (audio.ctx) {
+          const osc = audio.ctx.createOscillator();
+          const gain = audio.ctx.createGain();
+          const t = audio.ctx.currentTime;
+          osc.frequency.setValueAtTime(isAccent ? 1200 : 800, t);
+          gain.gain.setValueAtTime(0.25, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+          osc.connect(gain);
+          gain.connect(audio.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.04);
+        }
+      }
+    }
+
+    const metronome = new Metronome();
+
+    // Tap Tempo feature
+    let tapTimes = [];
+    function handleTapTempo() {
+      const now = performance.now();
+      tapTimes.push(now);
+      if (tapTimes.length > 4) tapTimes.shift();
+      if (tapTimes.length > 1) {
+        let intervals = [];
+        for (let i = 1; i < tapTimes.length; i++) {
+          intervals.push(tapTimes[i] - tapTimes[i - 1]);
+        }
+        const avg = intervals.reduce((a, b) => a + b) / intervals.length;
+        const calcBpm = Math.round(60000 / avg);
+        if (calcBpm >= 40 && calcBpm <= 240) {
+          document.getElementById('bpmSlider').value = calcBpm;
+          document.getElementById('bpmVal').textContent = `${calcBpm} BPM`;
+          metronome.setBpm(calcBpm);
+        }
+      }
+    }
+
+    // Groove Patterns Player
+    let activeGrooveInterval = null;
+    let grooveStep = 0;
+
+    const groovePatterns = {
+      rock: [
+        ['kick', 'hihatClosed'],
+        ['hihatClosed'],
+        ['snare', 'hihatClosed'],
+        ['hihatClosed'],
+        ['kick', 'hihatClosed'],
+        ['kick', 'hihatClosed'],
+        ['snare', 'hihatClosed'],
+        ['hihatClosed']
+      ],
+      funk: [
+        ['kick', 'hihatClosed'],
+        ['hihatClosed'],
+        ['snare', 'hihatClosed'],
+        ['kick'],
+        ['hihatClosed'],
+        ['kick', 'hihatClosed'],
+        ['snare'],
+        ['hihatOpen']
+      ],
+      trap: [
+        ['kick', 'hihatClosed'],
+        ['hihatClosed'],
+        ['snare', 'hihatClosed'],
+        ['hihatClosed'],
+        ['kick'],
+        ['kick', 'hihatClosed'],
+        ['snare', 'hihatClosed'],
+        ['hihatOpen']
+      ],
+      metal: [
+        ['kick', 'crash1'],
+        ['kick', 'hihatClosed'],
+        ['kick', 'snare'],
+        ['kick', 'hihatClosed'],
+        ['kick', 'crash2'],
+        ['kick', 'hihatClosed'],
+        ['kick', 'snare'],
+        ['kick', 'hihatOpen']
+      ]
+    };
+
+    function startGroove(type) {
+      stopGroove();
+      audio.ensureContext();
+      const pattern = groovePatterns[type];
+      if (!pattern) return;
+
+      grooveStep = 0;
+      const bpm = metronome.bpm;
+      const stepDuration = (60 / bpm / 2) * 1000; // 8th notes
+
+      activeGrooveInterval = setInterval(() => {
+        const stepItems = pattern[grooveStep % pattern.length];
+        stepItems.forEach(instId => triggerInstrument(instId, 0.9));
+        grooveStep++;
+      }, stepDuration);
+    }
+
+    function stopGroove() {
+      if (activeGrooveInterval) {
+        clearInterval(activeGrooveInterval);
+        activeGrooveInterval = null;
+      }
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+    }
+
+    // ---------------- KEYBINDS MODAL & REMAPPER ----------------
+    function renderKeybindsModal() {
+      const container = document.getElementById('keybindGrid');
+      container.innerHTML = '';
+
+      defaultInstruments.forEach(inst => {
+        const row = document.createElement('div');
+        row.className = 'keybind-row';
+        const curKey = keyMap[inst.id] || inst.key;
+        const displayKey = curKey === ' ' ? 'SPACE' : curKey.toUpperCase();
+
+        row.innerHTML = `
+          <span>${inst.name}</span>
+          <button class="key-input-btn" data-inst="${inst.id}">${displayKey}</button>
+        `;
+        container.appendChild(row);
+      });
+
+      // Key button listeners
+      container.querySelectorAll('.key-input-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Set listening state
+          container.querySelectorAll('.key-input-btn').forEach(b => {
+            b.classList.remove('listening');
+            b.textContent = (keyMap[b.dataset.inst] === ' ' ? 'SPACE' : keyMap[b.dataset.inst].toUpperCase());
+          });
+
+          btn.classList.add('listening');
+          btn.textContent = 'Tekan Tombol...';
+          listeningKeyId = btn.dataset.inst;
+        });
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (!listeningKeyId) return;
+      e.preventDefault();
+      const newKey = e.key.toLowerCase();
+      keyMap[listeningKeyId] = newKey;
+      localStorage.setItem('prodrum_keybinds', JSON.stringify(keyMap));
+      listeningKeyId = null;
+      renderKeybindsModal();
+      updateVisualKeys();
+    });
+
+    // ---------------- EVENT ATTACHMENTS ----------------
+    document.addEventListener('DOMContentLoaded', () => {
+      initKeyMap();
+      buildGridArena();
+      setupPadListeners();
+      initVisualizer();
+
+      // Sound Kit selector
+      document.getElementById('kitSelect').addEventListener('change', (e) => {
+        audio.setKit(e.target.value);
+      });
+
+      // Volume slider
+      document.getElementById('masterVolume').addEventListener('input', (e) => {
+        audio.setVolume(parseFloat(e.target.value));
+      });
+
+      // Reverb slider
+      document.getElementById('reverbAmount').addEventListener('input', (e) => {
+        audio.setReverb(parseFloat(e.target.value));
+      });
+
+      // Tab switcher (Realistic vs Pad Grid)
+      const tabRealistic = document.getElementById('tabRealistic');
+      const tabGrid = document.getElementById('tabGrid');
+      const stageWrapper = document.getElementById('stageWrapper');
+      const gridArena = document.getElementById('gridArena');
+
+      tabRealistic.addEventListener('click', () => {
+        tabRealistic.classList.add('active');
+        tabGrid.classList.remove('active');
+        stageWrapper.classList.remove('grid-mode');
+        gridArena.classList.remove('active');
+      });
+
+      tabGrid.addEventListener('click', () => {
+        tabGrid.classList.add('active');
+        tabRealistic.classList.remove('active');
+        stageWrapper.classList.add('grid-mode');
+        gridArena.classList.add('active');
+      });
+
+      // Metronome controls
+      const metroToggleBtn = document.getElementById('metroToggleBtn');
+      metroToggleBtn.addEventListener('click', () => {
+        if (metronome.isPlaying) metronome.stop();
+        else metronome.start();
+      });
+
+      const bpmSlider = document.getElementById('bpmSlider');
+      bpmSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('bpmVal').textContent = `${val} BPM`;
+        metronome.setBpm(val);
+      });
+
+      document.getElementById('tapTempoBtn').addEventListener('click', handleTapTempo);
+
+      // Demo grooves
+      document.querySelectorAll('.preset-chip[data-groove]').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const groove = chip.dataset.groove;
+          stopGroove();
+          chip.classList.add('active');
+          startGroove(groove);
+        });
+      });
+
+      document.getElementById('stopGrooveBtn').addEventListener('click', stopGroove);
+
+      // Recorder buttons
+      document.getElementById('btnRecord').addEventListener('click', () => {
+        if (recorder.isRecording) recorder.stopRecording();
+        else recorder.startRecording();
+      });
+
+      document.getElementById('btnPlayRecord').addEventListener('click', () => {
+        if (recorder.isPlaying) recorder.stopPlayback();
+        else recorder.play();
+      });
+
+      document.getElementById('btnLoopRecord').addEventListener('click', function () {
+        recorder.isLooping = !recorder.isLooping;
+        this.classList.toggle('btn-primary', recorder.isLooping);
+        if (recorder.isLooping && !recorder.isPlaying) {
+          recorder.play();
+        }
+      });
+
+      document.getElementById('btnClearRecord').addEventListener('click', () => recorder.clear());
+      document.getElementById('btnExportRecord').addEventListener('click', () => recorder.exportWAV());
+
+      // Keybinds Modal
+      const modal = document.getElementById('keybindsModal');
+      document.getElementById('openKeybindsBtn').addEventListener('click', () => {
+        renderKeybindsModal();
+        modal.classList.add('open');
+      });
+
+      document.getElementById('closeModalBtn').addEventListener('click', () => {
+        modal.classList.remove('open');
+        listeningKeyId = null;
+      });
+
+      document.getElementById('saveKeybindsBtn').addEventListener('click', () => {
+        modal.classList.remove('open');
+        listeningKeyId = null;
+      });
+
+      document.getElementById('resetKeybindsBtn').addEventListener('click', () => {
+        localStorage.removeItem('prodrum_keybinds');
+        keyMap = {};
+        initKeyMap();
+        renderKeybindsModal();
+      });
+
+      // Close modal on click outside
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('open');
+          listeningKeyId = null;
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
